@@ -1,24 +1,29 @@
 import unittest
 import numpy as np
-from regression import features,design,fit_predict
+from regression import forecast, walk_forward
 
 class RegressionTests(unittest.TestCase):
-    def test_target_alignment(self):
-        p=100*np.cumprod(1+np.arange(40)*.001)
-        x,y,i=features(p)
-        self.assertAlmostEqual(x[0,0],p[20]/p[19]-1)
-        self.assertAlmostEqual(y[0],p[21]/p[20]-1)
-        self.assertEqual(i[0],21)
+    def test_linear_extrapolation(self):
+        self.assertAlmostEqual(forecast(100+2*np.arange(10)),120)
 
-    def test_future_does_not_change_features(self):
-        p=np.arange(100.,150.)
-        altered=p.copy();altered[30:]*=2
-        np.testing.assert_allclose(features(p)[0][:10],features(altered)[0][:10])
+    def test_quadratic_extrapolation(self):
+        t=np.arange(10)
+        self.assertAlmostEqual(forecast(100+2*t+t*t,2),220)
 
-    def test_recovers_quadratic(self):
-        x=np.random.default_rng(0).normal(size=(200,3))
-        y=1+2*x[:,0]-3*x[:,1]**2
-        fit=np.arange(200)<150
-        pred,_=fit_predict(x,y,fit,~fit,True)
-        np.testing.assert_allclose(pred,y[~fit],atol=1e-10)
-        self.assertEqual(design(x,True).shape[1],7)
+    def test_future_cannot_change_prediction(self):
+        prices=100+np.arange(40,dtype=float)
+        altered=prices.copy();altered[20:]+=30
+        for degree in (1,2):
+            np.testing.assert_allclose(walk_forward(prices,degree)[:21],
+                                       walk_forward(altered,degree)[:21])
+
+    def test_only_last_ten_prices_matter(self):
+        prices=100+np.arange(40,dtype=float)
+        altered=prices.copy();altered[:10]+=50
+        for degree in (1,2):
+            self.assertAlmostEqual(walk_forward(prices,degree)[20],
+                                   walk_forward(altered,degree)[20])
+
+    def test_invalid_window(self):
+        with self.assertRaises(ValueError):
+            forecast([100]*9)

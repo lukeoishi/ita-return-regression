@@ -1,34 +1,28 @@
-# ITA return forecasting: linear versus quadratic
+# ITA: ten-day regression forecasts
 
-A small experiment asking whether recent ITA returns help predict the next trading day's return.
+Take the last ten adjusted closing prices, fit a straight line or quadratic against trading-day number, and extend it to the next day. Move the window forward and repeat.
 
-## Model
+- Linear: `price = a + b*t`.
+- Quadratic: `price = a + b*t + c*t²`.
+- Fit on `t = 0,...,9`; forecast at `t = 10`.
 
-Three inputs, all available at today's close:
+Every observation has equal weight. Each forecast gets a fresh fit using exactly ten preceding closes. No years-long coefficient training, extra signals, regularisation or parameter search. Historical prices are used to evaluate repeated forecasts, not to fit each individual line.
 
-- Today's simple return.
-- Mean return over the last five trading days, including today.
-- Mean return over the last twenty trading days, including today.
+## Results
 
-Linear regression fits an intercept and three coefficients. The quadratic version also includes each input's square: seven coefficients in total, with no interactions. Both use ordinary least squares. Inputs are standardised using fitting data only. There are no neural networks or tuning libraries.
+Evaluation covers 1,181 trading days from 3 January 2022 to 17 September 2026.
 
-## Evaluation
+| Model | Normalised price RMSE |
+|---|---:|
+| Predict the previous close | 1.2813% |
+| Ten-day linear fit | 1.8596% |
+| Ten-day quadratic fit | 1.9477% |
 
-Fit on targets before 2018, compare models on 2018–2021, then select the lower validation RMSE. Refit each model through 2021 and freeze its coefficients for the 2022–17 September 2026 comparison. Daily inputs update, but test targets never enter fitting. The baseline predicts a zero return (tomorrow's close equals today's).
+Linear error was 45.1% higher than the baseline; quadratic error was 52.0% higher. Neither improved next-day predictions in this comparison. Error is `(prediction - actual close) / previous close`; RMSE is expressed as a percentage. It is not a return or trading profit.
 
-| Model | Validation RMSE | Later-period RMSE |
-|---|---:|---:|
-| Linear | 1.8242% | 1.2803% |
-| Quadratic | 1.8162% | 1.2931% |
-| Zero return | — | 1.2813% |
+This is exploratory retrospective evaluation on a period already inspected during development, not an untouched holdout. The source is a cached Yahoo/yfinance adjusted daily ITA series; its hash is recorded in the metrics. It is not an independently verified point-in-time archive. No transaction costs or trading strategy are evaluated.
 
-Quadratic regression won validation but lost to the baseline on the 1,181 later observations. Linear regression's later RMSE was only 0.073% lower than the baseline; this is not evidence of a reliable forecasting advantage. The selected quadratic model was 0.922% worse. RMSE measures return prediction error, not profit or directional accuracy.
-
-The later period has already been examined in earlier project experiments. This is an exploratory retrospective comparison, not a fresh untouched holdout. No transaction costs or trading strategy are tested. The adjusted price snapshot came from a cached Yahoo/yfinance download; it is not independently verified point-in-time data. Its hash is recorded in the results.
-
-## Reproduce
-
-From the repository directory:
+## Run
 
 ```sh
 python -m pip install -r requirements.txt
@@ -36,4 +30,6 @@ python regression.py --data /path/to/ita_daily_adjusted.csv
 python -m unittest discover -s tests
 ```
 
-The CSV needs sorted, unique `Date` and positive adjusted `Close` columns spanning the stated periods. The complete raw snapshot is not included. Outputs are `results/metrics.json` (scores, scaling and fitted coefficients) and `predictions.csv` (every later-period prediction). `regression.py` contains the whole experiment. Tests check feature/target timing, independence from future prices and recovery of a known quadratic relationship.
+Supply a CSV with sorted, unique `Date` and positive adjusted `Close` columns, including ten prior observations and dates from 2022 onward. The full source snapshot is not included. Results are written to `results/metrics.json` and `results/predictions.csv`.
+
+`regression.py` contains the complete model and evaluation. Tests verify known line/curve extrapolation, the ten-observation window, and that future prices cannot affect earlier predictions.
