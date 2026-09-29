@@ -1,8 +1,14 @@
-# SPY: three simple price forecasts
+# SPY price forecasts
 
-The current comparison is `compare_spy.py`: last-close baseline, four-day linear regression and exponential smoothing with **alpha = 0.827**. These are fixed constants; running the model does not repeat parameter selection.
+Three simple ways to predict the next trading day's adjusted closing price:
 
-Earlier SPY data (2018–2021) selected alpha from 0.001–1.000 in steps of 0.001 and the linear window from 2–504 trading days, minimising normalised RMSE. Four days, not ten, was the best tested window on that period. These are dataset-specific selections, not universal optimal settings. Settings are recorded in `results/spy/settings.json`.
+- **Baseline:** use today's close.
+- **Linear regression:** fit a line to the last four closes and extend it one day.
+- **Exponential smoothing:** update the estimate with 82.7% of the latest close and 17.3% of the previous estimate.
+
+One Python script, NumPy only. No parameter search when running it.
+
+## Run
 
 ```sh
 python -m pip install -r requirements.txt
@@ -10,57 +16,22 @@ python compare_spy.py --data /path/to/spy_daily_adjusted.csv
 python -m unittest discover -s tests
 ```
 
-On 1,181 next-day forecasts from 3 January 2022 through 17 September 2026:
-
-| Model | USD RMSE | Normalised RMSE |
-|---|---:|---:|
-| Last close | 5.3184 | 1.0951% |
-| Linear, four days | 6.5743 | 1.3661% |
-| Exponential, alpha 0.827 | 5.3672 | 1.1070% |
-
-Neither beats the baseline. Finer calibration improved the precision of the parameter search, not later-period performance. All forecasts precede their target observations. This later period has already been examined, so the comparison remains exploratory. See the per-date predictions and metrics in `results/spy/`. No live feed or profitable trading strategy is claimed.
-
-## Earlier ITA comparison
-
-
-Take the last ten adjusted closing prices, fit a straight line or quadratic against trading-day number, and extend it to the next day. Move the window forward and repeat.
-
-- Linear: `price = a + b*t`.
-- Quadratic: `price = a + b*t + c*t²`.
-- Fit on `t = 0,...,9`; forecast at `t = 10`.
-
-Every observation has equal weight. Each forecast gets a fresh fit using exactly ten preceding closes. No years-long coefficient training, extra signals, regularisation or parameter search. Historical prices are used to evaluate repeated forecasts, not to fit each individual line.
+Supply a CSV with sorted, unique `Date` and positive adjusted `Close` columns. Include price history before 2022 to initialise the models. The complete source price file is not included.
 
 ## Results
 
-Evaluation covers 1,181 trading days from 3 January 2022 to 17 September 2026.
+1,181 forecasts, 3 January 2022–17 September 2026. Lower RMSE is better.
 
-| Model | Normalised price RMSE |
-|---|---:|
-| Predict the previous close | 1.2813% |
-| Ten-day linear fit | 1.8596% |
-| Ten-day quadratic fit | 1.9477% |
+| Model | RMSE (USD) | Normalised RMSE |
+|---|---:|---:|
+| Baseline | 5.3184 | 1.0951% |
+| Linear | 6.5743 | 1.3661% |
+| Exponential smoothing | 5.3672 | 1.1070% |
 
-Linear error was 45.1% higher than the baseline; quadratic error was 52.0% higher. Neither improved next-day predictions in this comparison. Error is `(prediction - actual close) / previous close`; RMSE is expressed as a percentage. It is not a return or trading profit.
+**Neither model beat the baseline.** Normalised error divides each price error by the previous close before calculating RMSE.
 
-This is exploratory retrospective evaluation on a period already inspected during development, not an untouched holdout. The source is a cached Yahoo/yfinance adjusted daily ITA series; its hash is recorded in the metrics. It is not an independently verified point-in-time archive. No transaction costs or trading strategy are evaluated.
+The four-day window and 0.827 smoothing weight were selected on 2018–2021 data using normalised RMSE. Windows 2–504 and weights 0.001–1.000 were tested. They are fixed settings, not universal optima. See [the experiment log](LOG.md).
 
-## Run
+`compare_spy.py` contains the models and evaluation. `tests/test_spy.py` checks forecast timing and independence from future prices. `results/spy/` contains settings, scores and every prediction.
 
-```sh
-python -m pip install -r requirements.txt
-python regression.py --data /path/to/ita_daily_adjusted.csv
-python -m unittest discover -s tests
-```
-
-Supply a CSV with sorted, unique `Date` and positive adjusted `Close` columns, including ten prior observations and dates from 2022 onward. The full source snapshot is not included. Results are written to `results/metrics.json` and `results/predictions.csv`.
-
-`regression.py` contains the complete model and evaluation. Tests verify known line/curve extrapolation, the ten-observation window, and that future prices cannot affect earlier predictions.
-
-## Anchoring the forecast at the latest price
-
-`python anchored.py --data /path/to/ita_daily_adjusted.csv` tests:
-
-`forecast = latest close + fraction × ten-day fitted slope`
-
-The fraction is chosen from 0 to 1 in steps of 0.05 using 2018–2021 normalised prediction error only. The window stays fixed at ten days. Calibration chose **zero**, so the selected forecast is exactly the last-close baseline. On the later period, the full slope gave 1.3641% RMSE; the selected zero fraction gave 1.2813%. Anchoring reduced the original line's error, but this test did not establish a useful trend signal. No further parameter search was performed to force a win. Outputs are `results/anchored.json` and `results/anchored-predictions.csv`.
+This is a retrospective experiment using cached Yahoo/yfinance adjusted prices. The later period was inspected during development, so it is not an untouched holdout. The data are not independently verified point-in-time records. No live feed, trading returns or transaction costs are modelled.
