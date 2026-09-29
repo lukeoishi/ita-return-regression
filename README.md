@@ -33,3 +33,11 @@ python -m unittest discover -s tests
 Supply a CSV with sorted, unique `Date` and positive adjusted `Close` columns, including ten prior observations and dates from 2022 onward. The full source snapshot is not included. Results are written to `results/metrics.json` and `results/predictions.csv`.
 
 `regression.py` contains the complete model and evaluation. Tests verify known line/curve extrapolation, the ten-observation window, and that future prices cannot affect earlier predictions.
+
+## Anchoring the forecast at the latest price
+
+`python anchored.py --data /path/to/ita_daily_adjusted.csv` tests:
+
+`forecast = latest close + fraction × ten-day fitted slope`
+
+The fraction is chosen from 0 to 1 in steps of 0.05 using 2018–2021 normalised prediction error only. The window stays fixed at ten days. Calibration chose **zero**, so the selected forecast is exactly the last-close baseline. On the later period, the full slope gave 1.3641% RMSE; the selected zero fraction gave 1.2813%. Anchoring reduced the original line's error, but this test did not establish a useful trend signal. No further parameter search was performed to force a win. Outputs are `results/anchored.json` and `results/anchored-predictions.csv`.
