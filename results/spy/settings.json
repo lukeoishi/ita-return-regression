@@ -1,0 +1,9 @@
+{
+  "alpha": 0.827,
+  "linear_window": 4,
+  "selection_period": "2018\u20132021",
+  "alpha_grid": "0.001 through 1.000 in steps of 0.001",
+  "window_grid": "2 through 504 trading days",
+  "selection_metric": "normalised RMSE",
+  "note": "Best among tested settings, not a universal optimum."
+}

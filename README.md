@@ -1,4 +1,27 @@
-# ITA: ten-day regression forecasts
+# SPY: three simple price forecasts
+
+The current comparison is `compare_spy.py`: last-close baseline, four-day linear regression and exponential smoothing with **alpha = 0.827**. These are fixed constants; running the model does not repeat parameter selection.
+
+Earlier SPY data (2018–2021) selected alpha from 0.001–1.000 in steps of 0.001 and the linear window from 2–504 trading days, minimising normalised RMSE. Four days, not ten, was the best tested window on that period. These are dataset-specific selections, not universal optimal settings. Settings are recorded in `results/spy/settings.json`.
+
+```sh
+python -m pip install -r requirements.txt
+python compare_spy.py --data /path/to/spy_daily_adjusted.csv
+python -m unittest discover -s tests
+```
+
+On 1,181 next-day forecasts from 3 January 2022 through 17 September 2026:
+
+| Model | USD RMSE | Normalised RMSE |
+|---|---:|---:|
+| Last close | 5.3184 | 1.0951% |
+| Linear, four days | 6.5743 | 1.3661% |
+| Exponential, alpha 0.827 | 5.3672 | 1.1070% |
+
+Neither beats the baseline. Finer calibration improved the precision of the parameter search, not later-period performance. All forecasts precede their target observations. This later period has already been examined, so the comparison remains exploratory. See the per-date predictions and metrics in `results/spy/`. No live feed or profitable trading strategy is claimed.
+
+## Earlier ITA comparison
+
 
 Take the last ten adjusted closing prices, fit a straight line or quadratic against trading-day number, and extend it to the next day. Move the window forward and repeat.
 
